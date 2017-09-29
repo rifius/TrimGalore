@@ -30,10 +30,10 @@ use Cwd;
 my $DOWARN = 1; # print on screen warning and text by default
 BEGIN { $SIG{'__WARN__'} = sub { warn $_[0] if $DOWARN } };
 
-my $trimmer_version = '0.4.4';
+my $trimmer_version = '0.4.4.CR';
 
 
-my ($cutoff,$adapter,$stringency,$rrbs,$length_cutoff,$keep,$fastqc,$non_directional,$phred_encoding,$fastqc_args,$trim,$gzip,$validate,$retain,$length_read_1,$length_read_2,$a2,$error_rate,$output_dir,$no_report_file,$dont_gzip,$clip_r1,$clip_r2,$three_prime_clip_r1,$three_prime_clip_r2,$nextera,$small_rna,$path_to_cutadapt,$illumina,$max_length,$maxn,$trim_n) = process_commandline();
+my ($cutoff,$adapter,$extraadapt,$stringency,$rrbs,$length_cutoff,$keep,$fastqc,$non_directional,$phred_encoding,$fastqc_args,$trim,$gzip,$validate,$retain,$length_read_1,$length_read_2,$a2,$error_rate,$output_dir,$no_report_file,$dont_gzip,$clip_r1,$clip_r2,$three_prime_clip_r1,$three_prime_clip_r2,$nextera,$small_rna,$path_to_cutadapt,$illumina,$max_length,$maxn,$trim_n) = process_commandline();
 
 my @filenames = @ARGV;
 die "\nPlease provide the filename(s) of one or more FastQ file(s) to launch Trim Galore!\n
@@ -124,6 +124,13 @@ unless (defined $a2){ # optional adapter for the second read in a pair. Only wor
   $a2 = '';
 }
 
+if (defined $extraadapt){ # Optional extra adapter, minimal check
+  $extraadapt = "-a $extraadapt";
+}
+else {
+  $extraadapt = '';
+}
+
 unless (defined $stringency){
   $stringency = 1;
 }
@@ -185,6 +192,9 @@ sub trim{
 
   warn "Adapter sequence: '$adapter' ($adapter_name)\n";
   print REPORT "Adapter sequence: '$adapter' ($adapter_name)\n";
+
+  warn "Extra adapter sequence: '$extraadapt'\n";
+  print REPORT "Extra adapter sequence(s): '$extraadapt'\n";
 
   if ($error_rate == 0.1){
     warn "Maximum trimming error rate: $error_rate (default)\n";
@@ -417,19 +427,19 @@ sub trim{
 	  if ( scalar(@filenames)%2 == 0){ # this is read 1 of a pair
 	      warn "\n  >>> Now performing adapter trimming for the adapter sequence: '$adapter' from file $temp <<< \n";
 	      sleep (1);
-	      $pid = open3 (\*WRITER, \*TRIM, \*ERROR,"$path_to_cutadapt -f fastq -e $error_rate -O $stringency -a $adapter $output_dir$temp") or die "Failed to launch Cutadapt: $!\n";
+	      $pid = open3 (\*WRITER, \*TRIM, \*ERROR,"$path_to_cutadapt -f fastq -e $error_rate -O $stringency -a $adapter $extraadapt $output_dir$temp") or die "Failed to launch Cutadapt: $!\n";
 	  }
 	  else{                            # this is read 2 of a pair
 	      warn "\n  >>> Now performing adapter trimming for the adapter sequence: '$a2' from file $temp <<< \n";
 	      sleep (1);
-	      $pid = open3 (\*WRITER, \*TRIM, \*ERROR,"$path_to_cutadapt -f fastq -e $error_rate -O $stringency -a $a2 $output_dir$temp") or die "Failed to launch Cutadapt: $!\n";
+	      $pid = open3 (\*WRITER, \*TRIM, \*ERROR,"$path_to_cutadapt -f fastq -e $error_rate -O $stringency -a $a2 $extraadapt $output_dir$temp") or die "Failed to launch Cutadapt: $!\n";
 	  }
       }
       ### Using the same adapter for both read 1 and read 2
       else{
 	  warn "\n  >>> Now performing adapter trimming for the adapter sequence: '$adapter' from file $temp <<< \n";
 	  sleep (3);
-	  $pid = open3 (\*WRITER, \*TRIM, \*ERROR,"$path_to_cutadapt -f fastq -e $error_rate -O $stringency -a $adapter $output_dir$temp") or die "Failed to launch Cutadapt: $!\n";
+	  $pid = open3 (\*WRITER, \*TRIM, \*ERROR,"$path_to_cutadapt -f fastq -e $error_rate -O $stringency -a $adapter $extraadapt $output_dir$temp") or die "Failed to launch Cutadapt: $!\n";
       }
       
       close WRITER or die $!; # not needed
@@ -587,19 +597,19 @@ sub trim{
 	  if ( scalar(@filenames)%2 == 0){ # this is read 1 of a pair
 	      warn "\n  >>> Now performing quality (cutoff $cutoff) and adapter trimming in a single pass for the adapter sequence: '$adapter' from file $filename <<< \n";
 	      sleep (1);
-	      $pid = open3 (\*WRITER, \*TRIM, \*ERROR, "$path_to_cutadapt -f fastq -e $error_rate -q $cutoff -O $stringency $trim_n -a $adapter $filename") or die "Failed to launch Cutadapt: $!";
+	      $pid = open3 (\*WRITER, \*TRIM, \*ERROR, "$path_to_cutadapt -f fastq -e $error_rate -q $cutoff -O $stringency $trim_n -a $adapter $extraadapt $filename") or die "Failed to launch Cutadapt: $!";
 	  }
 	  else{                            # this is read 2 of a pair
 	      warn "\n  >>> Now performing quality (cutoff $cutoff) and adapter trimming in a single pass for the adapter sequence: '$a2' from file $filename <<< \n";
 	      sleep (1);
-	      $pid = open3 (\*WRITER, \*TRIM, \*ERROR, "$path_to_cutadapt -f fastq -e $error_rate -q $cutoff -O $stringency $trim_n -a $a2 $filename") or die "Failed to launch Cutadapt: $!";
+	      $pid = open3 (\*WRITER, \*TRIM, \*ERROR, "$path_to_cutadapt -f fastq -e $error_rate -q $cutoff -O $stringency $trim_n -a $a2 $extraadapt $filename") or die "Failed to launch Cutadapt: $!";
 	  }
       }
       ### Using the same adapter for both read 1 and read 2
       else{
 	  warn "\n  >>> Now performing quality (cutoff $cutoff) and adapter trimming in a single pass for the adapter sequence: '$adapter' from file $filename <<< \n";
 	  sleep (1);
-	  $pid = open3 (\*WRITER, \*TRIM, \*ERROR, "$path_to_cutadapt -f fastq -e $error_rate -q $cutoff -O $stringency $trim_n -a $adapter $filename") or die "Failed to launch Cutadapt: $!";
+	  $pid = open3 (\*WRITER, \*TRIM, \*ERROR, "$path_to_cutadapt -f fastq -e $error_rate -q $cutoff -O $stringency $trim_n -a $adapter $extraadapt $filename") or die "Failed to launch Cutadapt: $!";
       }
       
       close WRITER or die $!; # not needed
@@ -1272,6 +1282,7 @@ sub process_commandline{
   my $quality;
   my $adapter;
   my $adapter2;
+  my $extraadapt;
   my $stringency;
   my $report;
   my $version;
@@ -1310,6 +1321,7 @@ sub process_commandline{
 				 'q|quality=i' => \$quality,
 				 'a|adapter=s' => \$adapter,
 				 'a2|adapter2=s' => \$adapter2,
+				 'extra_adapter=s' => \$extraadapt,
 				 'report' => \$report,
 				 'version' => \$version,
 				 'stringency=i' => \$stringency,
@@ -1437,7 +1449,7 @@ VERSION
     if ($illumina){
       die "You can't supply an adapter sequence AND use the Illumina universal adapter sequence. Make your choice.\n\n";
     }
-     if ($nextera){
+    if ($nextera){
       die "You can't supply an adapter sequence AND use the Nextera transposase adapter sequence. Make your choice.\n\n";
     }
     if ($small_rna){
@@ -1454,6 +1466,10 @@ VERSION
     }
     $adapter2 = uc$adapter2;
   }
+
+  if(defined $extraadapt){
+    warn "Using an additional adapter sequence $extraadapt !\n\n";
+  }  
 
   ### LENGTH CUTOFF
   # this gets set right at the start after the adapter auto-detection has been concluded
@@ -1584,7 +1600,7 @@ VERSION
       $rrbs = 0;
   }
   
-  return ($quality,$adapter,$stringency,$rrbs,$length_cutoff,$keep,$fastqc,$non_directional,$phred_encoding,$fastqc_args,$trim,$gzip,$validate,$retain,$length_read_1,$length_read_2,$adapter2,$error_rate,$output_dir,$no_report_file,$dont_gzip,$clip_r1,$clip_r2,$three_prime_clip_r1,$three_prime_clip_r2,$nextera,$small_rna,$path_to_cutadapt,$illumina,$max_length,$maxn,$trim_n);
+  return ($quality,$adapter,$extraadapt,$stringency,$rrbs,$length_cutoff,$keep,$fastqc,$non_directional,$phred_encoding,$fastqc_args,$trim,$gzip,$validate,$retain,$length_read_1,$length_read_2,$adapter2,$error_rate,$output_dir,$no_report_file,$dont_gzip,$clip_r1,$clip_r2,$three_prime_clip_r1,$three_prime_clip_r2,$nextera,$small_rna,$path_to_cutadapt,$illumina,$max_length,$maxn,$trim_n);
 }
 
 sub Ncounter{
@@ -1642,6 +1658,9 @@ trim_galore [options] <filename(s)>
                         option requires '--paired' to be specified as well. If the libraries to be trimmed
                         are smallRNA then a2 will be set to the Illumina small RNA 5' adapter automatically
                         (GATCGTCGGACT).
+
+--extra_adapter <STRING> Optional extra adapter(s) to pass to cutadapt.  A hack for multiadapter 
+                        trimming in a single pass. Default: ''. Multiple space-separated sequences ok.
 
 --illumina              Adapter sequence to be trimmed is the first 13bp of the Illumina universal adapter
                         'AGATCGGAAGAGC' instead of the default auto-detection of adapter sequence.
