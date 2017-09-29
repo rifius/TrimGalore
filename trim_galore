@@ -125,7 +125,11 @@ unless (defined $a2){ # optional adapter for the second read in a pair. Only wor
 }
 
 if (defined $extraadapt){ # Optional extra adapter, minimal check
-  $extraadapt = "-a $extraadapt";
+  my $xtargs = $extraadapt;
+  $extraadapt = '';
+  while($xtargs =~ /([^ \t,]+)[ \t,]*/g) {
+    $extraadapt .= " -a $1";
+  }
 }
 else {
   $extraadapt = '';
